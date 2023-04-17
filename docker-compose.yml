@@ -1,0 +1,63 @@
+version: "3.9"
+services:
+
+#  nginx:
+#    image: nginx:latest
+#    container_name: phuctech-nginx
+#    ports:
+#      - ${PC_PHP_SERVER_PORT:-80}:80
+#      - ${PC_PHP_SERVER_SSL_PORT:-443}:443
+#    volumes:
+#      - ./server:/var/www/html
+#      - ./.env:/var/www/html/.env
+#      - ./.docker/nginx/site.conf:/etc/nginx/conf.d/default.conf
+#      - ./.docker/nginx/cert/nginx.crt:/etc/ssl/nginx.crt
+#      - ./.docker/nginx/cert/nginx.key:/etc/ssl/nginx.key
+#    depends_on:
+#      - server
+#      - db
+
+  db:
+    image: mariadb:10.3.31
+    container_name: scoreme-db
+    command: >
+      bash -c "
+      chmod 644 /etc/mysql/conf.d/*.cnf
+      && /docker-entrypoint.sh mysqld
+      "
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-123456}
+      - MARIADB_USER=${DB_USER:-user}
+      - MARIADB_PASSWORD=${DB_PASSWORD:-123456}
+      - MARIADB_DATABASE=${DB_DATABASE:-scoreme}
+      - PHP_IDE_CONFIG=${PHP_IDE_CONFIG:-}
+    volumes:
+      - scoreme_data:/var/lib/mysql:delegated
+      - ./.docker/mysql/db_conf.d:/etc/mysql/conf.d:cached
+    ports:
+      - ${PC_DB_PORT:-3306}:3306
+
+  server:
+    build:
+      context: .
+    image: scoreme/server
+    container_name: scoreme-server
+    tty: true
+    volumes:
+      - ./server:/var/www/html:cached
+      - ./.docker/apache/sites:/etc/apache2/sites-enabled:cached
+      - ./.docker/php/php.ini:/usr/local/etc/php/conf.d/zocker-php.ini
+      - ./.env:/var/www/html/.env
+      - /var/www/html/vendor
+    command: >
+      bash -c "
+      chmod -R 0777 /var/www/html/storage
+      && apache2-foreground
+      "
+    ports:
+      - ${PC_PHP_SERVER_PORT:-80}:80
+      - ${PC_PHP_SERVER_SSL_PORT:-443}:443
+    depends_on:
+      - db
+volumes:
+  scoreme_data:
