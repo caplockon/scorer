@@ -1,2 +1,2 @@
-# ptech
-Test Reposiotpry
+# Scorer Application
+
